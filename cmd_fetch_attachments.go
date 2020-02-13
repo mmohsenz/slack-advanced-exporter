@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 func fetchAttachments(inputArchive string, outputArchive string) error {
@@ -100,6 +101,10 @@ func fetchAttachments(inputArchive string, outputArchive string) error {
 
 func processChannelFile(w *zip.Writer, file *zip.File, inBuf []byte, existingFiles map[string]bool) error {
 
+	var httpClient = &http.Client{
+		Timeout: time.Second * 30,
+	}
+
 	// Parse the JSON of the file.
 	var posts []SlackPost
 	if err := json.Unmarshal(inBuf, &posts); err != nil {
@@ -157,7 +162,7 @@ func processChannelFile(w *zip.Writer, file *zip.File, inBuf []byte, existingFil
 			}
 
 			// Fetch the file.
-			response, err := http.Get(downloadUrl)
+			response, err := httpClient.Get(downloadUrl)
 			if err != nil {
 				log.Print("++++++ Failed to donwload the file: " + downloadUrl)
 				continue
