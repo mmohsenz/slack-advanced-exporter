@@ -43,7 +43,13 @@ func fetchAttachments(inputArchive string, outputArchive string) error {
 
 	// Create a zip writer on the output archive.
 	w := zip.NewWriter(f)
+	existingFiles := make(map[string]bool)
 
+	for _, file := range r.File {
+		if strings.HasPrefix(file.Name, "__uploads") {
+			existingFiles[file.Name] = true
+		}
+	}
 	// Run through all the files in the input archive.
 	for _, file := range r.File {
 
@@ -75,7 +81,7 @@ func fetchAttachments(inputArchive string, outputArchive string) error {
 		splits := strings.Split(file.Name, "/")
 		if len(splits) == 2 && !strings.HasPrefix(splits[0], "__") && strings.HasSuffix(splits[1], ".json") {
 			// Parse this file.
-			err = processChannelFile(w, file, inBuf)
+			err = processChannelFile(w, file, inBuf, existingFiles)
 			if err != nil {
 				fmt.Printf("%s", err)
 				os.Exit(1)
@@ -92,7 +98,7 @@ func fetchAttachments(inputArchive string, outputArchive string) error {
 	return nil
 }
 
-func processChannelFile(w *zip.Writer, file *zip.File, inBuf []byte) error {
+func processChannelFile(w *zip.Writer, file *zip.File, inBuf []byte, existingFiles map[string]bool) error {
 
 	// Parse the JSON of the file.
 	var posts []SlackPost
@@ -137,6 +143,11 @@ func processChannelFile(w *zip.Writer, file *zip.File, inBuf []byte) error {
 
 			// Build the output file path.
 			outputPath := "__uploads/" + file.Id + "/" + file.Name
+
+			if existingFiles[outputPath] {
+				log.Print("++++++ Skipping the file: " + outputPath)
+				continue
+			}
 
 			// Create the file in the zip output file.
 			outFile, err := w.Create(outputPath)
